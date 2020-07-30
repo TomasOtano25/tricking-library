@@ -1,109 +1,95 @@
 <template>
-  <v-layout
-    column
-    justify-center
-    align-center
-  >
-    <v-flex
-      xs12
-      sm8
-      md6
-    >
-      <div class="text-center">
-        <logo/>
-        <vuetify-logo/>
-      </div>
-      <v-card>
-        <v-card-title class="headline">
-          {{message}}
-        </v-card-title>
-        <v-card-text>
-          <p>Vuetify is a progressive Material Design component framework for Vue.js. It was designed to empower
-            developers to create amazing applications.</p>
-          <p>
-            For more information on Vuetify, check out the <a
-            href="https://vuetifyjs.com"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            documentation
-          </a>.
-          </p>
-          <p>
-            If you have questions, please join the official <a
-            href="https://chat.vuetifyjs.com/"
-            target="_blank"
-            rel="noopener noreferrer"
-            title="chat"
-          >
-            discord
-          </a>.
-          </p>
-          <p>
-            Find a bug? Report it on the github <a
-            href="https://github.com/vuetifyjs/vuetify/issues"
-            target="_blank"
-            rel="noopener noreferrer"
-            title="contribute"
-          >
-            issue board
-          </a>.
-          </p>
-          <p>Thank you for developing with Vuetify and I look forward to bringing more exciting features in the
-            future.</p>
-          <div class="text-xs-right">
-            <em><small>&mdash; John Leider</small></em>
+  <div>
+
+      <div v-if="tricks">
+        <div v-for="t in tricks">
+          {{t.name}}
+          <div>
+            <video width="400" controls :src="`http://localhost:5000/api/videos/${t.video}`"></video>
           </div>
-          <hr class="my-3">
-          <a
-            href="https://nuxtjs.org/"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Nuxt Documentation
-          </a>
-          <br>
-          <a
-            href="https://github.com/nuxt/nuxt.js"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Nuxt GitHub
-          </a>
-        </v-card-text>
-        <v-card-actions>
-          <v-spacer/>
-          <v-btn
-            color="primary"
-            nuxt
-            to="/inspire"
-          >
-            Continue
-          </v-btn>
-        </v-card-actions>
-      </v-card>
-    </v-flex>
-  </v-layout>
+        </div>
+      </div>
+
+      <v-stepper v-model="step">
+        <v-stepper-header>
+          <v-stepper-step :complete="step > 1" step="1">Upload Video</v-stepper-step>
+
+          <v-divider></v-divider>
+
+          <v-stepper-step :complete="step > 2" step="2">Trick Information</v-stepper-step>
+
+          <v-divider></v-divider>
+
+          <v-stepper-step step="3">Confirmation</v-stepper-step>
+        </v-stepper-header>
+
+        <v-stepper-items>
+          <v-stepper-content step="1">
+
+            <div>
+              <v-file-input accept="video/*" @change="handleFile"></v-file-input>
+            </div>
+
+          </v-stepper-content>
+
+          <v-stepper-content step="2">
+            <div>
+              <v-text-field label="Tricking Name" v-model="trickName"></v-text-field>
+              <v-btn @click="saveTrick">Save Trick</v-btn>
+            </div>
+          </v-stepper-content>
+
+          <v-stepper-content step="3">
+            <div>
+              Success
+            </div>
+          </v-stepper-content>
+        </v-stepper-items>
+      </v-stepper>
+
+  </div>
 </template>
 
 <script>
-  import Logo from '~/components/Logo.vue'
-  import VuetifyLogo from '~/components/VuetifyLogo.vue'
-  import Axios from "axios";
+  import {mapState, mapActions, mapMutations} from "vuex";
 
   export default {
-    components: {
-      Logo,
-      VuetifyLogo
-    },
+
     data: () => ({
-      message: ""
+      trickName: "",
+      step: 1
     }),
-    asyncData(payload) {
-      return Axios.get("http://localhost:5000/api/home")
-        .then(({data}) => {
-          return { message: data };
-        })
+    computed: {
+      ...mapState('tricks', ['tricks']),
+      ...mapState('videos', ['uploadPromise'])
+    } ,
+    methods: {
+      ...mapMutations('videos', {
+        resetVideos: 'reset'
+      }),
+      ...mapActions('tricks', ['createTrick']),
+      ...mapActions('videos', ['startVideoUpload']),
+      async handleFile(file) {
+        if(!file) return;
+
+        const form = new FormData();
+        form.append("video", file);
+
+        this.startVideoUpload({form});
+        this.step++;
+      },
+      async saveTrick() {
+        if(!this.uploadPromise) {
+          console.log("uploadPromise is null");
+          return;
+        }
+
+        const video = await this.uploadPromise;
+        await  this.createTrick({trick: {name: this.trickName, video}})
+        this.trickName = "";
+        this.step++;
+        this.resetVideos();
+      },
     }
   }
 </script>
